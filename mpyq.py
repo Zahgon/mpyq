@@ -115,69 +115,11 @@ class MPQArchive(object):
 
     def read_header(self):
         """Read the header of a MPQ archive."""
-
-        def read_mpq_header(offset=None):
-            if offset:
-                self.file.seek(offset)
-            data = self.file.read(32)
-            header = MPQFileHeader._make(
-                struct.unpack(MPQFileHeader.struct_format, data))
-            header = header._asdict()
-            if header['format_version'] == 1:
-                data = self.file.read(12)
-                extended_header = MPQFileHeaderExt._make(
-                    struct.unpack(MPQFileHeaderExt.struct_format, data))
-                header.update(extended_header._asdict())
-            return header
-
-        def read_mpq_user_data_header():
-            data = self.file.read(16)
-            header = MPQUserDataHeader._make(
-                struct.unpack(MPQUserDataHeader.struct_format, data))
-            header = header._asdict()
-            header['content'] = self.file.read(header['user_data_header_size'])
-            return header
-
-        magic = self.file.read(4)
-        self.file.seek(0)
-
-        if magic == b'MPQ\x1a':
-            header = read_mpq_header()
-            header['offset'] = 0
-        elif magic == b'MPQ\x1b':
-            user_data_header = read_mpq_user_data_header()
-            header = read_mpq_header(user_data_header['mpq_header_offset'])
-            header['offset'] = user_data_header['mpq_header_offset']
-            header['user_data_header'] = user_data_header
-        else:
-            raise ValueError("Invalid file header.")
-
-        return header
+        pass
 
     def read_table(self, table_type):
         """Read either the hash or block table of a MPQ archive."""
-
-        if table_type == 'hash':
-            entry_class = MPQHashTableEntry
-        elif table_type == 'block':
-            entry_class = MPQBlockTableEntry
-        else:
-            raise ValueError("Invalid table type.")
-
-        table_offset = self.header['%s_table_offset' % table_type]
-        table_entries = self.header['%s_table_entries' % table_type]
-        key = self._hash('(%s table)' % table_type, 'TABLE')
-
-        self.file.seek(table_offset + self.header['offset'])
-        data = self.file.read(table_entries * 16)
-        data = self._decrypt(data, key)
-
-        def unpack_entry(position):
-            entry_data = data[position*16:position*16+16]
-            return entry_class._make(
-                struct.unpack(entry_class.struct_format, entry_data))
-
-        return [unpack_entry(i) for i in range(table_entries)]
+        pass
 
     def get_hash_table_entry(self, filename):
         """Get the hash table entry corresponding to a given filename."""
@@ -272,11 +214,7 @@ class MPQArchive(object):
 
     def extract_files(self, *filenames):
         """Extract given files from the archive to disk."""
-        for filename in filenames:
-            data = self.read_file(filename)
-            f = open(filename, 'wb')
-            f.write(data or b'')
-            f.close()
+        pass
 
     def print_headers(self):
         print("MPQ archive header")
@@ -342,23 +280,7 @@ class MPQArchive(object):
 
     def _decrypt(self, data, key):
         """Decrypt hash or block table or a sector."""
-        seed1 = key
-        seed2 = 0xEEEEEEEE
-        result = BytesIO()
-
-        for i in range(len(data) // 4):
-            seed2 += self.encryption_table[0x400 + (seed1 & 0xFF)]
-            seed2 &= 0xFFFFFFFF
-            value = struct.unpack("<I", data[i*4:i*4+4])[0]
-            value = (value ^ (seed1 + seed2)) & 0xFFFFFFFF
-
-            seed1 = ((~seed1 << 0x15) + 0x11111111) | (seed1 >> 0x0B)
-            seed1 &= 0xFFFFFFFF
-            seed2 = value + seed2 + (seed2 << 5) + 3 & 0xFFFFFFFF
-
-            result.write(struct.pack("<I", value))
-
-        return result.getvalue()
+        pass
 
     def _prepare_encryption_table():
         """Prepare encryption table for MPQ hash function."""
